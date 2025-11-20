@@ -35,4 +35,5 @@ RUN mkdir -p /app/uploads /app/clips /app/logs /tmp
 EXPOSE 8000
 
 # Start the application
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use PORT environment variable from Railway, default to 8000
+CMD sh -c "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"

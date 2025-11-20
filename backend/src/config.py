@@ -21,5 +21,14 @@ class Config:
         self.temp_dir = os.getenv("TEMP_DIR", "temp")
 
         # Redis configuration
-        self.redis_host = os.getenv("REDIS_HOST", "localhost")
-        self.redis_port = int(os.getenv("REDIS_PORT", "6379"))
+        # Railway provides REDIS_URL, parse it or fall back to host/port
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            # Parse redis://host:port format
+            from urllib.parse import urlparse
+            parsed = urlparse(redis_url)
+            self.redis_host = parsed.hostname or "localhost"
+            self.redis_port = parsed.port or 6379
+        else:
+            self.redis_host = os.getenv("REDIS_HOST", "localhost")
+            self.redis_port = int(os.getenv("REDIS_PORT", "6379"))
