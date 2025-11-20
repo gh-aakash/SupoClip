@@ -6,3 +6,8 @@ logs/
 temp/
 .env
 *.m4a
+node_modules/
+.venv/
+venv/
+dist/
+.next/
