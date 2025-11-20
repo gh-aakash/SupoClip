@@ -17,17 +17,17 @@ echo "============================================"
 echo ""
 
 # Check if .env file exists
+# Check if .env file exists
 if [ ! -f .env ]; then
-    echo -e "${RED}Error: .env file not found!${NC}"
-    echo ""
-    echo "Please create a .env file with your API keys:"
-    echo "  1. Copy the template: cp .env.example .env"
-    echo "  2. Or use the provided .env file"
-    echo "  3. Edit .env and add your API keys:"
-    echo "     - ASSEMBLY_AI_API_KEY (required)"
-    echo "     - OPENAI_API_KEY or GOOGLE_API_KEY or ANTHROPIC_API_KEY"
-    echo ""
-    exit 1
+    echo -e "${YELLOW}Warning: .env file not found!${NC}"
+    echo "Checking for environment variables..."
+    if [ -z "$ASSEMBLY_AI_API_KEY" ] && [ -z "$GOOGLE_API_KEY" ]; then
+         echo -e "${RED}Error: No .env file and no API keys in environment!${NC}"
+         exit 1
+    fi
+else
+    # Load .env if it exists
+    source .env
 fi
 
 # Check if required API keys are set
