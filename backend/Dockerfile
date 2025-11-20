@@ -5,25 +5,21 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
+    git \
     && rm -rf /var/lib/apt/lists/*
-
-# Install uv package manager
-RUN pip install uv
 
 # Set working directory
 WORKDIR /app
 
-# Copy pyproject.toml and uv.lock for dependency installation
-COPY pyproject.toml uv.lock* ./
+# Copy requirements file
+COPY requirements.txt .
 
-# Create virtual environment and install dependencies using uv sync
-ENV UV_HTTP_TIMEOUT=300
-RUN uv venv .venv && uv sync
+# Install dependencies using pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Force update yt-dlp to the absolute latest version to handle YouTube API changes
-# Also install from git to get the very latest commits
-RUN uv pip install --upgrade --force-reinstall yt-dlp
-RUN uv pip install --upgrade --force-reinstall "yt-dlp[default]"
+RUN pip install --no-cache-dir --upgrade --force-reinstall yt-dlp
+RUN pip install --no-cache-dir --upgrade --force-reinstall "yt-dlp[default]"
 
 # Copy source code
 COPY src/ ./src/
@@ -38,5 +34,5 @@ RUN mkdir -p /app/uploads /app/clips /app/logs /tmp
 # Expose the port FastAPI will run on
 EXPOSE 8000
 
-# Activate virtual environment and start the application
-CMD [".venv/bin/uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start the application
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
