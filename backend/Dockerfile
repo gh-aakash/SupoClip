@@ -17,6 +17,7 @@ WORKDIR /app
 COPY pyproject.toml uv.lock* ./
 
 # Create virtual environment and install dependencies using uv sync
+ENV UV_HTTP_TIMEOUT=300
 RUN uv venv .venv && uv sync
 
 # Force update yt-dlp to the absolute latest version to handle YouTube API changes

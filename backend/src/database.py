@@ -1,8 +1,14 @@
 import os
+import logging
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from sqlalchemy.exc import OperationalError, DBAPIError
 
 from dotenv import load_dotenv
 from sqlalchemy.orm import DeclarativeBase
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy import text
+
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
@@ -42,11 +48,30 @@ async def get_db():
         finally:
             await session.close()
 
-# Initialize database
+# Initialize database with retry logic
+@retry(
+    stop=stop_after_attempt(10),
+    wait=wait_exponential(multiplier=1, min=2, max=30),
+    retry=retry_if_exception_type((OperationalError, DBAPIError, OSError)),
+    reraise=True
+)
 async def init_db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Initialize database with retry logic for connection issues."""
+    logger.info("Attempting to connect to database...")
+    try:
+        # First, test the connection
+        async with engine.begin() as conn:
+            await conn.execute(text("SELECT 1"))
+            logger.info("✅ Database connection successful")
+            
+            # Then create tables
+            await conn.run_sync(Base.metadata.create_all)
+            logger.info("✅ Database tables initialized")
+    except Exception as e:
+        logger.warning(f"⚠️  Database connection attempt failed: {e}")
+        raise
 
 # Close database connections
 async def close_db():
     await engine.dispose()
+    logger.info("Database connections closed")

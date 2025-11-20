@@ -40,21 +40,44 @@ async def lifespan(app: FastAPI):
     """Application lifespan: startup and shutdown events."""
     # Startup
     logger.info("🚀 Starting SupoClip API...")
+    
+    db_initialized = False
+    queue_initialized = False
+    
     try:
-        await init_db()
-        logger.info("✅ Database initialized")
+        # Try to initialize database with retry logic
+        try:
+            await init_db()
+            logger.info("✅ Database initialized")
+            db_initialized = True
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize database after retries: {e}")
+            logger.warning("⚠️  Application starting without database connection")
 
-        # Initialize job queue
-        await JobQueue.get_pool()
-        logger.info("✅ Job queue initialized")
+        # Try to initialize job queue with retry logic
+        try:
+            await JobQueue.get_pool()
+            logger.info("✅ Job queue initialized")
+            queue_initialized = True
+        except Exception as e:
+            logger.error(f"❌ Failed to initialize job queue after retries: {e}")
+            logger.warning("⚠️  Application starting without job queue connection")
+
+        if not db_initialized or not queue_initialized:
+            logger.warning("⚠️  Application started with degraded functionality")
+            logger.info("💡 Services will retry connections on first use")
+        else:
+            logger.info("✅ All services initialized successfully")
 
         yield
 
     finally:
         # Shutdown
         logger.info("🛑 Shutting down SupoClip API...")
-        await close_db()
-        await JobQueue.close_pool()
+        if db_initialized:
+            await close_db()
+        if queue_initialized:
+            await JobQueue.close_pool()
         logger.info("✅ Cleanup complete")
 
 

@@ -127,7 +127,7 @@ class TaskService:
                     start_time=clip_info["start_time"],
                     end_time=clip_info["end_time"],
                     duration=clip_info["duration"],
-                    text=clip_info["text"],
+                    clip_text=clip_info["text"],
                     relevance_score=clip_info["relevance_score"],
                     reasoning=clip_info["reasoning"],
                     clip_order=i + 1

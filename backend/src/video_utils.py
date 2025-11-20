@@ -4,7 +4,7 @@ Optimized for MoviePy v2, AssemblyAI integration, and high-quality output.
 """
 
 from pathlib import Path
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple, Optional, Union
 import os
 import logging
 import numpy as np
@@ -57,8 +57,10 @@ class VideoProcessor:
         }
         return settings.get(target_quality, settings["high"])
 
-def get_video_transcript(video_path: Path) -> str:
+def get_video_transcript(video_path: Union[Path, str]) -> str:
     """Get transcript using AssemblyAI with word-level timing for precise subtitles."""
+    if isinstance(video_path, str):
+        video_path = Path(video_path)
     logger.info(f"Getting transcript for: {video_path}")
 
     # Configure AssemblyAI
@@ -131,8 +133,10 @@ def get_video_transcript(video_path: Path) -> str:
         logger.error(f"Error in transcription: {e}")
         raise
 
-def cache_transcript_data(video_path: Path, transcript) -> None:
+def cache_transcript_data(video_path: Union[Path, str], transcript) -> None:
     """Cache AssemblyAI transcript data for subtitle generation."""
+    if isinstance(video_path, str):
+        video_path = Path(video_path)
     cache_path = video_path.with_suffix('.transcript_cache.json')
 
     # Store word-level data
@@ -156,8 +160,10 @@ def cache_transcript_data(video_path: Path, transcript) -> None:
 
     logger.info(f"Cached {len(words_data)} words to {cache_path}")
 
-def load_cached_transcript_data(video_path: Path) -> Optional[Dict]:
+def load_cached_transcript_data(video_path: Union[Path, str]) -> Optional[Dict]:
     """Load cached AssemblyAI transcript data."""
+    if isinstance(video_path, str):
+        video_path = Path(video_path)
     cache_path = video_path.with_suffix('.transcript_cache.json')
 
     if not cache_path.exists():

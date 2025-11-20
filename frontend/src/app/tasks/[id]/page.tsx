@@ -102,23 +102,9 @@ export default function TaskPage() {
       const taskData = await taskResponse.json();
       setTask(taskData);
 
-      // Only fetch clips if task is completed
-      if (taskData.status === "completed") {
-        const clipsHeaders: HeadersInit = {};
-        if (session?.user?.id) {
-          clipsHeaders["user_id"] = session.user.id;
-        }
-
-        const clipsResponse = await fetch(`${apiUrl}/tasks/${params.id}/clips`, {
-          headers: clipsHeaders,
-        });
-
-        if (!clipsResponse.ok) {
-          throw new Error(`Failed to fetch clips: ${clipsResponse.status}`);
-        }
-
-        const clipsData = await clipsResponse.json();
-        setClips(clipsData.clips || []);
+      // Use clips from the main task response
+      if (taskData.status === "completed" && taskData.clips) {
+        setClips(taskData.clips);
       }
 
       return true;
@@ -164,7 +150,7 @@ export default function TaskPage() {
       setProgressMessage(data.message || "");
     });
 
-    eventSource.addEventListener("progress", (e) => {
+    eventSource.addEventListener("progress", async (e) => {
       const data = JSON.parse(e.data);
       console.log("📈 Progress:", data);
       setProgress(data.progress || 0);
@@ -173,6 +159,18 @@ export default function TaskPage() {
       // Update task status if provided
       if (data.status && task) {
         setTask({ ...task, status: data.status });
+
+        // If task just completed, fetch clips
+        if (data.status === "completed") {
+          console.log("🎬 Task completed, fetching clips...");
+          await fetchTaskStatus();
+        }
+      }
+
+      // Also fetch clips when progress reaches 100%
+      if (data.progress === 100 && task?.status !== "completed") {
+        console.log("💯 Progress 100%, fetching final status...");
+        await fetchTaskStatus();
       }
     });
 
@@ -181,7 +179,7 @@ export default function TaskPage() {
       console.log("✅ Task completed:", data.status);
       eventSource.close();
 
-      // Refresh task and clips
+      // Refresh task and clips (without showing loading skeleton)
       await fetchTaskStatus();
     });
 
@@ -199,6 +197,34 @@ export default function TaskPage() {
       eventSource.close();
     };
   }, [params.id, task?.status]); // Re-run when task status changes
+
+  // Polling fallback: if task is completed but no clips, keep checking
+  useEffect(() => {
+    if (!task || task.status !== "completed" || clips.length > 0) return;
+
+    console.log("⏰ Task completed but no clips yet, polling...");
+
+    const pollInterval = setInterval(async () => {
+      console.log("🔄 Polling for clips...");
+      const success = await fetchTaskStatus();
+
+      // Stop polling if we got clips or if fetch failed
+      if (!success || clips.length > 0) {
+        clearInterval(pollInterval);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Stop polling after 30 seconds
+    const timeout = setTimeout(() => {
+      console.log("⏱️ Polling timeout reached");
+      clearInterval(pollInterval);
+    }, 30000);
+
+    return () => {
+      clearInterval(pollInterval);
+      clearTimeout(timeout);
+    };
+  }, [task?.status, clips.length]); // Re-run when status or clips change
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -534,18 +560,27 @@ export default function TaskPage() {
                 <>
                   <div className="text-yellow-600 mb-4">
                     <AlertCircle className="w-12 h-12 mx-auto mb-2" />
-                    <h2 className="text-xl font-semibold">No Clips Generated</h2>
+                    <h2 className="text-xl font-semibold">Loading Clips...</h2>
                   </div>
                   <p className="text-gray-600 mb-4">
-                    The task completed but no clips were generated. The video may not have had suitable content for
-                    clipping.
+                    Your clips are ready! They should appear automatically in a moment.
                   </p>
-                  <Link href="/">
-                    <Button>
-                      <ArrowLeft className="w-4 h-4 mr-2" />
-                      Try Another Video
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      onClick={async () => {
+                        console.log("🔄 Manual refresh triggered");
+                        await fetchTaskStatus();
+                      }}
+                    >
+                      Load Clips Now
                     </Button>
-                  </Link>
+                    <Link href="/">
+                      <Button variant="outline">
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Back to Home
+                      </Button>
+                    </Link>
+                  </div>
                 </>
               ) : (
                 <>

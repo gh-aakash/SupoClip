@@ -5,6 +5,8 @@ import logging
 from typing import Optional
 from arq import create_pool
 from arq.connections import RedisSettings, ArqRedis
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from redis.exceptions import ConnectionError, TimeoutError
 from ..config import Config
 
 logger = logging.getLogger(__name__)
@@ -24,11 +26,22 @@ class JobQueue:
     _pool: Optional[ArqRedis] = None
 
     @classmethod
+    @retry(
+        stop=stop_after_attempt(10),
+        wait=wait_exponential(multiplier=1, min=2, max=30),
+        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
+        reraise=True
+    )
     async def get_pool(cls) -> ArqRedis:
-        """Get or create the Redis connection pool."""
+        """Get or create the Redis connection pool with retry logic."""
         if cls._pool is None:
-            cls._pool = await create_pool(ARQ_REDIS_SETTINGS)
-            logger.info(f"Created arq Redis pool: {config.redis_host}:{config.redis_port}")
+            logger.info(f"Attempting to connect to Redis at {config.redis_host}:{config.redis_port}...")
+            try:
+                cls._pool = await create_pool(ARQ_REDIS_SETTINGS)
+                logger.info(f"✅ Created arq Redis pool: {config.redis_host}:{config.redis_port}")
+            except Exception as e:
+                logger.warning(f"⚠️  Redis connection attempt failed: {e}")
+                raise
         return cls._pool
 
     @classmethod
@@ -53,7 +66,7 @@ class JobQueue:
             job_id: Unique ID for the enqueued job
         """
         pool = await cls.get_pool()
-        job = await pool.enqueue_job(function_name, *args, **kwargs)
+        job = await pool.enqueue_job(function_name, *args, _queue_name="supoclip_tasks", **kwargs)
         logger.info(f"Enqueued job {job.job_id}: {function_name}")
         return job.job_id
 
@@ -74,3 +87,4 @@ class JobQueue:
         if job:
             return await job.status()
         return None
+
