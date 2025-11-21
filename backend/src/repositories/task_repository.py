@@ -32,7 +32,7 @@ class TaskRepository:
             """),
             {
                 "user_id": user_id,
-                "source_id": source_id,
+                "source_id": str(source_id),  # Convert UUID to string
                 "status": status,
                 "font_family": font_family,
                 "font_size": font_size,
