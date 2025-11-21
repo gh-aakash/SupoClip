@@ -29,8 +29,9 @@ DATABASE_URL = DATABASE_URL.replace(
 )
 
 # Remove any existing sslmode query parameter (asyncpg doesn't support it in URL)
-if "?sslmode" in DATABASE_URL:
-    DATABASE_URL = DATABASE_URL.split("?sslmode")[0]
+# Handle both ?sslmode and &sslmode cases
+import re
+DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
 
 logger.info(f"📌 Final DB URL for SQLAlchemy: {DATABASE_URL}")
 
