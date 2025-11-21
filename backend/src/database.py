@@ -44,8 +44,10 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=1800,
     connect_args={
-        "ssl": "require",  # SSL configuration for asyncpg
-        "statement_cache_size": 0  # Disable prepared statements for pgbouncer compatibility
+        "statement_cache_size": 0,  # Disable prepared statements for pgbouncer compatibility
+        "server_settings": {
+            "jit": "off"  # Disable JIT compilation for better pgbouncer compatibility
+        }
     }
 )
 
