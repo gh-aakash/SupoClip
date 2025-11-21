@@ -80,6 +80,11 @@ async def check_database_health(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         return {"status": "unhealthy", "database": "disconnected", "error": str(e)}
 
+@app.get("/health")
+async def health_check():
+    """Simple health check"""
+    return {"status": "healthy"}
+
 @app.post("/start")
 async def start_task(request: Request):
   """Start a new task for authenticated users"""

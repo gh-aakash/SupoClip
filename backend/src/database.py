@@ -10,47 +10,56 @@ from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
-# Load environment variables
+# Load env vars
 load_dotenv()
 
-# Database configuration
-# Railway provides DATABASE_URL in postgres:// format, we need postgresql+asyncpg://
+# --- DATABASE CONFIG ---
 DATABASE_URL = os.getenv("DATABASE_URL")
-if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
-    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-elif not DATABASE_URL:
-    DATABASE_URL = "postgresql+asyncpg://localhost:5432/supoclip"
 
-# Create async engine
-engine = create_async_engine(
-    DATABASE_URL,
-    echo=False,  # Set to True for SQL query logging
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True,
-    pool_recycle=3600,
+if not DATABASE_URL:
+    raise ValueError("❌ DATABASE_URL is missing! Set it in Render environment variables.")
+
+# --- CONVERT TO ASYNC FORMAT ---
+# Supabase gives URLs like:
+# postgresql://postgres:password@host:5432/postgres
+DATABASE_URL = DATABASE_URL.replace(
+    "postgres://", "postgresql+asyncpg://"
+).replace(
+    "postgresql://", "postgresql+asyncpg://"
 )
 
-# Create async session maker
+# --- REQUIRE SSL (supabase required) ---
+if "sslmode" not in DATABASE_URL:
+    DATABASE_URL += "?sslmode=require"
+
+logger.info(f"📌 Final DB URL for SQLAlchemy: {DATABASE_URL}")
+
+# --- CREATE ENGINE ---
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+)
+
 AsyncSessionLocal = async_sessionmaker(
     engine,
     class_=AsyncSession,
     expire_on_commit=False,
 )
 
-# Base class for all models
 class Base(DeclarativeBase):
     pass
 
-# Dependency to get database session
+
 async def get_db():
     async with AsyncSessionLocal() as session:
-        try:
-            yield session
-        finally:
-            await session.close()
+        yield session
 
-# Initialize database with retry logic
+
+# --- DATABASE INIT CHECK ---
 @retry(
     stop=stop_after_attempt(10),
     wait=wait_exponential(multiplier=1, min=2, max=30),
@@ -58,22 +67,17 @@ async def get_db():
     reraise=True
 )
 async def init_db():
-    """Initialize database with retry logic for connection issues."""
-    logger.info("Attempting to connect to database...")
+    logger.info("🔌 Trying to connect to Supabase database...")
     try:
-        # First, test the connection
         async with engine.begin() as conn:
             await conn.execute(text("SELECT 1"))
-            logger.info("✅ Database connection successful")
-            
-            # Then create tables
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("✅ Database tables initialized")
+            logger.info("⚡ DB Connection Successful!")
+            # ⚠ DO NOT CREATE TABLES AUTOMATICALLY IN PRODUCTION
     except Exception as e:
-        logger.warning(f"⚠️  Database connection attempt failed: {e}")
+        logger.error(f"❌ Database connection failed: {e}")
         raise
 
-# Close database connections
+
 async def close_db():
     await engine.dispose()
-    logger.info("Database connections closed")
+    logger.info("🔻 Database connections closed")

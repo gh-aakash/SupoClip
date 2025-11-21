@@ -1,52 +1,34 @@
 services:
-  # Backend Web Service
+  # -----------------------------
+  # Backend Service (FastAPI)
+  # -----------------------------
   - type: web
     name: supoclip-backend
     env: docker
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     plan: free
     region: oregon
     numInstances: 1
-    healthCheckPath: /health
+    healthCheckPath: /health/db
+    envVarGroups:
+      - supoclip-secrets
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
-      - key: DATABASE_URL
-        fromDatabase:
-          name: supoclip-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: connectionString
-      - key: REDIS_HOST
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: port
-      - key: ASSEMBLY_AI_API_KEY
-        sync: false
+      
+      # ---- APP SETTINGS ----
       - key: LLM
         value: openai:gpt-4
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: GOOGLE_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
       - key: WHISPER_MODEL_SIZE
         value: medium
       - key: TEMP_DIR
         value: /tmp/uploads
 
-  # Frontend Web Service
+
+  # -----------------------------
+  # Frontend Service (Next.js)
+  # -----------------------------
   - type: web
     name: supoclip-frontend
     env: docker
@@ -58,11 +40,15 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+
+      # Backend URL for API calls
       - key: NEXT_PUBLIC_API_URL
         fromService:
           type: web
           name: supoclip-backend
           property: url
+
+      # Auth config
       - key: BETTER_AUTH_URL
         fromService:
           type: web
@@ -70,71 +56,35 @@ services:
           property: url
       - key: BETTER_AUTH_SECRET
         generateValue: true
-      - key: DATABASE_URL
-        fromDatabase:
-          name: supoclip-db
-          property: connectionString
 
-  # Worker Service
+
+  # -----------------------------
+  # Worker Service (ARQ Worker)
+  # -----------------------------
   - type: worker
     name: supoclip-worker
     env: docker
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
-    dockerCommand: .venv/bin/arq src.workers.tasks.WorkerSettings
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "arq src.workers.tasks.WorkerSettings"
     plan: free
     region: oregon
     numInstances: 1
+    envVarGroups:
+      - supoclip-secrets
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
-      - key: DATABASE_URL
-        fromDatabase:
-          name: supoclip-db
-          property: connectionString
-      - key: REDIS_URL
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: connectionString
-      - key: REDIS_HOST
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: host
-      - key: REDIS_PORT
-        fromService:
-          type: redis
-          name: supoclip-redis
-          property: port
-      - key: ASSEMBLY_AI_API_KEY
-        sync: false
-      - key: LLM
-        value: openai:gpt-4
-      - key: OPENAI_API_KEY
-        sync: false
-      - key: GOOGLE_API_KEY
-        sync: false
-      - key: ANTHROPIC_API_KEY
-        sync: false
+
       - key: WHISPER_MODEL_SIZE
         value: medium
       - key: TEMP_DIR
         value: /tmp/uploads
 
-databases:
-  - name: supoclip-db
-    databaseName: supoclip
-    user: supoclip
-    plan: free
-    region: oregon
 
-# Render Managed Redis
-# Note: Render's free Redis is ephemeral (no persistence) and has limits.
-# For production, upgrade to a paid plan.
-services:
-  - type: redis
-    name: supoclip-redis
-    region: oregon
-    plan: free
-    ipAllowList: [] # Only allow internal connections
+# ---------------------------------------------------
+# 🚨 Removed:
+# - Built-in Render PostgreSQL
+# - Render Redis
+# Because you're using Supabase + Railway instead
+# ---------------------------------------------------

@@ -86,11 +86,8 @@ class WorkerSettings:
     queue_name = "supoclip_tasks"
 
     # Redis settings from environment
-    redis_settings = RedisSettings(
-        host=config.redis_host,
-        port=config.redis_port,
-        database=0
-    )
+    # Redis settings from environment
+    redis_settings = RedisSettings.from_url(config.redis_url)
 
     # Retry settings
     max_tries = 3  # Retry failed jobs up to 3 times

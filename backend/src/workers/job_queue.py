@@ -7,72 +7,50 @@ from arq import create_pool
 from arq.connections import RedisSettings, ArqRedis
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from redis.exceptions import ConnectionError, TimeoutError
-from ..config import Config
+from src.config import Config
 
 logger = logging.getLogger(__name__)
 config = Config()
 
-# Redis settings for arq
-ARQ_REDIS_SETTINGS = RedisSettings(
-    host=config.redis_host,
-    port=config.redis_port,
-    database=0
-)
+# Use URL directly from config
+ARQ_REDIS_SETTINGS = RedisSettings.from_url(config.redis_url)
 
 
 class JobQueue:
-    """Wrapper for arq job queue operations."""
+    """Handles pushing, inspecting, and retrieving jobs."""
 
     _pool: Optional[ArqRedis] = None
 
     @classmethod
     @retry(
-        stop=stop_after_attempt(10),
-        wait=wait_exponential(multiplier=1, min=2, max=30),
-        retry=retry_if_exception_type((ConnectionError, TimeoutError, OSError)),
-        reraise=True
+        retry=retry_if_exception_type((ConnectionError, TimeoutError)),
+        stop=stop_after_attempt(5),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
     )
     async def get_pool(cls) -> ArqRedis:
-        """Get or create the Redis connection pool with retry logic."""
-        if cls._pool is None:
-            logger.info(f"Attempting to connect to Redis at {config.redis_host}:{config.redis_port}...")
-            try:
-                cls._pool = await create_pool(ARQ_REDIS_SETTINGS)
-                logger.info(f"✅ Created arq Redis pool: {config.redis_host}:{config.redis_port}")
-            except Exception as e:
-                logger.warning(f"⚠️  Redis connection attempt failed: {e}")
-                raise
+        if cls._pool:
+            return cls._pool
+
+        logger.info(f"🔌 Connecting to Redis: {config.redis_url}")
+        cls._pool = await create_pool(ARQ_REDIS_SETTINGS)
         return cls._pool
 
     @classmethod
-    async def close_pool(cls):
-        """Close the Redis connection pool."""
-        if cls._pool is not None:
-            await cls._pool.close()
-            cls._pool = None
-            logger.info("Closed arq Redis pool")
+    async def enqueue(cls, task_name: str, **kwargs) -> str:
+        """Enqueue a task to Redis using arq."""
+        pool = await cls.get_pool()
+        job_id = await pool.enqueue_job(task_name, **kwargs)
+        logger.info(f"🚀 Enqueued task {task_name} with ID: {job_id}")
+        return job_id
 
     @classmethod
-    async def enqueue_job(cls, function_name: str, *args, **kwargs) -> str:
-        """
-        Enqueue a job to be processed by workers.
-
-        Args:
-            function_name: Name of the worker function to call
-            *args: Positional arguments for the function
-            **kwargs: Keyword arguments for the function
-
-        Returns:
-            job_id: Unique ID for the enqueued job
-        """
+    async def get_job(cls, job_id: str):
         pool = await cls.get_pool()
-        job = await pool.enqueue_job(function_name, *args, _queue_name="supoclip_tasks", **kwargs)
-        logger.info(f"Enqueued job {job.job_id}: {function_name}")
-        return job.job_id
+        job = await pool.job(job_id)
+        return job
 
     @classmethod
     async def get_job_result(cls, job_id: str):
-        """Get the result of a completed job."""
         pool = await cls.get_pool()
         job = await pool.job(job_id)
         if job:
@@ -81,10 +59,8 @@ class JobQueue:
 
     @classmethod
     async def get_job_status(cls, job_id: str) -> Optional[str]:
-        """Get the status of a job."""
         pool = await cls.get_pool()
         job = await pool.job(job_id)
         if job:
             return await job.status()
         return None
-

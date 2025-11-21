@@ -1,13 +1,21 @@
-# Use Python 3.11 slim image
+# ============================
+# Base Image
+# ============================
 FROM python:3.11-slim
 
-# --- ENVIRONMENT FIXES ---
+# ============================
+# Environment & PIP Fixes
+# ============================
 ENV PYTHONUNBUFFERED=1 \
     PIP_DEFAULT_TIMEOUT=120 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1
+    PIP_NO_CACHE_DIR=1 \
+    POETRY_VIRTUALENVS_CREATE=false
 
-# Install system dependencies including ffmpeg
+# ============================
+# System dependencies
+# Important for opencv, asyncpg, moviepy, ffmpeg
+# ============================
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
@@ -15,39 +23,58 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
     libffi-dev \
+    libpq-dev \
     libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# ============================
+# Working Directory
+# ============================
 WORKDIR /app
 
-# Copy requirements file from backend
+# ============================
+# Copy Requirements
+# ============================
 COPY backend/requirements.txt .
 
-# -- IMPORTANT: Constrain importlib_metadata to avoid dependency resolution hang --
-# You do NOT need to modify your requirements file,
-# this keeps the fix inside Docker only.
+# Upgrade pip and fix importlib metadata dependencies
 RUN pip install --upgrade pip setuptools wheel
 RUN pip install "importlib_metadata>=7.0,<8.0"
 
-# Install dependencies with verbose output
+# Install deps
 RUN pip install -r requirements.txt --verbose --timeout 200
 
-# Install yt-dlp exactly once (forces known working version)
+# Force stable yt-dlp
 RUN pip install --upgrade --force-reinstall yt-dlp
 
-# Copy source code from backend
+# ============================
+# Copy Application Source
+# ============================
 COPY backend/src/ ./src/
-
-# Copy fonts and transitions directories from backend
 COPY backend/fonts/ ./fonts/
 COPY backend/transitions/ ./transitions/
 
-# Create necessary directories for video processing
+# ============================
+# Create directories used by your app
+# ============================
 RUN mkdir -p /app/uploads /app/clips /app/logs /tmp
 
-# Expose the port FastAPI will run on
+# ============================
+# Environment Variables (Injected at runtime)
+# Do NOT hardcode credentials here
+# ============================
+ENV TEMP_DIR=/tmp/uploads
+
+# ============================
+# Expose Backend Port
+# ============================
 EXPOSE 8000
 
-# Start the application
-CMD sh -c "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"
+# ============================
+# Start App (Render sets PORT)
+# ============================
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
