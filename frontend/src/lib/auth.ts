@@ -15,6 +15,12 @@ export const auth = betterAuth({
   plugins: [
     nextCookies(), // Enable Next.js cookie handling
   ],
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://supo-clip-git-main-akash-singhs-projects-28f1ddc9.vercel.app",
+    process.env.BETTER_AUTH_URL || "",
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
+  ].filter(Boolean),
 });
 
 export type Session = typeof auth.$Infer.Session;
