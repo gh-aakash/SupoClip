@@ -41,19 +41,13 @@ services:
       - key: NODE_ENV
         value: production
 
-      # Backend URL for API calls
-      - key: NEXT_PUBLIC_API_URL
-        fromService:
-          type: web
-          name: supoclip-backend
-          property: url
+      # Backend URL for API calls (Set manually after deployment)
+      # - key: NEXT_PUBLIC_API_URL
+      #   value: https://supoclip-backend-production.onrender.com
 
       # Auth config
-      - key: BETTER_AUTH_URL
-        fromService:
-          type: web
-          name: supoclip-frontend
-          property: url
+      # - key: BETTER_AUTH_URL
+      #   value: https://supoclip-frontend-production.onrender.com
       - key: BETTER_AUTH_SECRET
         generateValue: true
 
