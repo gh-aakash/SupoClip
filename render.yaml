@@ -21,7 +21,7 @@ services:
       - key: LLM
         value: openai:gpt-4
       - key: WHISPER_MODEL_SIZE
-        value: medium
+        value: base
       - key: TEMP_DIR
         value: /tmp/uploads
 
