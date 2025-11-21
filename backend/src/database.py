@@ -28,9 +28,9 @@ DATABASE_URL = DATABASE_URL.replace(
     "postgresql://", "postgresql+asyncpg://"
 )
 
-# --- REQUIRE SSL (supabase required) ---
-if "sslmode" not in DATABASE_URL:
-    DATABASE_URL += "?sslmode=require"
+# Remove any existing sslmode query parameter (asyncpg doesn't support it in URL)
+if "?sslmode" in DATABASE_URL:
+    DATABASE_URL = DATABASE_URL.split("?sslmode")[0]
 
 logger.info(f"📌 Final DB URL for SQLAlchemy: {DATABASE_URL}")
 
@@ -42,6 +42,9 @@ engine = create_async_engine(
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=1800,
+    connect_args={
+        "ssl": "require"  # SSL configuration for asyncpg
+    }
 )
 
 AsyncSessionLocal = async_sessionmaker(
