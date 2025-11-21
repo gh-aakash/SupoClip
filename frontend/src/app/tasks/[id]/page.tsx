@@ -633,7 +633,7 @@ export default function TaskPage() {
                     {/* Video Player */}
                     <div className="bg-black relative flex-shrink-0 flex items-center justify-center">
                       <DynamicVideoPlayer
-                        src={`http://localhost:8000${clip.video_url}`}
+                        src={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${clip.video_url}`}
                         poster="/placeholder-video.jpg"
                       />
                     </div>
@@ -675,7 +675,7 @@ export default function TaskPage() {
 
                       <div className="flex gap-2">
                         <Button size="sm" variant="outline" asChild>
-                          <a href={`http://localhost:8000${clip.video_url}`} download={clip.filename}>
+                          <a href={`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${clip.video_url}`} download={clip.filename}>
                             <Download className="w-4 h-4 mr-2" />
                             Download
                           </a>
