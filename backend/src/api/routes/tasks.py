@@ -14,6 +14,7 @@ from ...services.task_service import TaskService
 from ...workers.job_queue import JobQueue
 from ...workers.progress import ProgressTracker
 from ...config import Config
+from ...utils.validators import validate_task_input
 import redis.asyncio as redis
 
 logger = logging.getLogger(__name__)
@@ -54,21 +55,21 @@ async def create_task(request: Request, db: AsyncSession = Depends(get_db)):
     """
     data = await request.json()
     headers = request.headers
-
-    raw_source = data.get("source")
     user_id = headers.get("user_id")
 
+    if not user_id:
+        raise HTTPException(status_code=401, detail="User authentication required")
+
+    # Validate input (includes URL validation to prevent SSRF)
+    data = validate_task_input(data)
+
+    raw_source = data.get("source")
+    
     # Get font options
     font_options = data.get("font_options", {})
     font_family = font_options.get("font_family", "TikTokSans-Regular")
     font_size = font_options.get("font_size", 24)
     font_color = font_options.get("font_color", "#FFFFFF")
-
-    if not raw_source or not raw_source.get("url"):
-        raise HTTPException(status_code=400, detail="Source URL is required")
-
-    if not user_id:
-        raise HTTPException(status_code=401, detail="User authentication required")
 
     try:
         task_service = TaskService(db)
