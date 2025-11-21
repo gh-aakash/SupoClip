@@ -29,7 +29,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import text
 
 from .models import User, Task, Source, GeneratedClip
-from .database import init_db, close_db, get_db, AsyncSessionLocal
+from .database import init_db, close_db, get_db, AsyncSessionLocal, Base
 from .api.routes.tasks import router as tasks_router
 
 config = Config()
@@ -442,6 +442,14 @@ async def process_video_task(task_id: str, raw_source: dict, user_id: str, font_
         # Mark as completed
         await update_task_status(task_id, "completed")
         logger.info(f"🎉 Task {task_id} completed successfully!")
+
+        # Cleanup temporary source video
+        if video_path and Path(video_path).exists():
+            try:
+                Path(video_path).unlink()
+                logger.info(f"🧹 Cleaned up source video: {video_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to cleanup source video: {e}")
 
     except Exception as e:
         logger.error(f"❌ Error processing task {task_id}: {str(e)}")
