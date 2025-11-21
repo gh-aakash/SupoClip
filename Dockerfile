@@ -77,9 +77,5 @@ EXPOSE 8000
 # ============================
 # Start App (Render sets PORT)
 # ============================
-# Copy startup script
-COPY start.sh .
-RUN chmod +x start.sh
-
-# Run both Worker and Backend
-CMD ["./start.sh"]
+# Start App (Render sets PORT)
+CMD ["sh", "-c", "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

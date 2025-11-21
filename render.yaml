@@ -11,7 +11,6 @@ services:
     region: oregon
     numInstances: 1
     healthCheckPath: /health/db
-
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
@@ -26,35 +25,28 @@ services:
 
 
   # -----------------------------
-  # Frontend Service (Next.js)
+  # Worker Service (ARQ Worker)
   # -----------------------------
-  - type: web
-    name: supoclip-frontend-production
+  - type: worker
+    name: supoclip-worker-production
     env: docker
-    dockerContext: ./frontend
-    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "arq src.workers.tasks.WorkerSettings"
     plan: free
     region: oregon
     numInstances: 1
-
     envVars:
-      - key: NODE_ENV
-        value: production
-
-      # Backend URL for API calls (Set manually after deployment)
-      # - key: NEXT_PUBLIC_API_URL
-      #   value: https://supoclip-backend-production.onrender.com
-
-      # Auth config
-      # - key: BETTER_AUTH_URL
-      #   value: https://supoclip-frontend-production.onrender.com
-      - key: BETTER_AUTH_SECRET
-        generateValue: true
-
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: WHISPER_MODEL_SIZE
+        value: base
+      - key: TEMP_DIR
+        value: /tmp/uploads
 
 # ---------------------------------------------------
 # 🚨 Removed:
+# - Frontend (Deploying to Vercel)
 # - Built-in Render PostgreSQL
 # - Render Redis
-# Because you're using Supabase + Railway instead
 # ---------------------------------------------------
