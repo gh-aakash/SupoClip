@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 config = Config()
 
 # Use URL directly from config
-ARQ_REDIS_SETTINGS = RedisSettings.from_url(config.redis_url)
+ARQ_REDIS_SETTINGS = RedisSettings.from_dsn(config.redis_url)
 
 
 class JobQueue:
