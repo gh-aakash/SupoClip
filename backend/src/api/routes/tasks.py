@@ -87,15 +87,15 @@ async def create_task(request: Request, db: AsyncSession = Depends(get_db)):
         source_type = task_service.video_service.determine_source_type(raw_source["url"])
 
         # Enqueue job for worker
-        job_id = await JobQueue.enqueue_job(
+        job_id = await JobQueue.enqueue(
             "process_video_task",
-            task_id,
-            raw_source["url"],
-            source_type,
-            user_id,
-            font_family,
-            font_size,
-            font_color
+            task_id=task_id,
+            url=raw_source["url"],
+            source_type=source_type,
+            user_id=user_id,
+            font_family=font_family,
+            font_size=font_size,
+            font_color=font_color
         )
 
         logger.info(f"Task {task_id} created and job {job_id} enqueued")
@@ -197,6 +197,7 @@ async def get_task_progress_sse(task_id: str, db: AsyncSession = Depends(get_db)
         redis_client = redis.Redis(
             host=config.redis_host,
             port=config.redis_port,
+            password=config.redis_password,
             decode_responses=True
         )
 
