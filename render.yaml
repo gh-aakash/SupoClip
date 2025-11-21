@@ -3,7 +3,7 @@ services:
   # Backend Service (FastAPI)
   # -----------------------------
   - type: web
-    name: supoclip-backend
+    name: supoclip-backend-production
     env: docker
     dockerContext: .
     dockerfilePath: ./Dockerfile
@@ -11,8 +11,7 @@ services:
     region: oregon
     numInstances: 1
     healthCheckPath: /health/db
-    envVarGroups:
-      - supoclip-secrets
+
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
@@ -30,15 +29,14 @@ services:
   # Frontend Service (Next.js)
   # -----------------------------
   - type: web
-    name: supoclip-frontend
+    name: supoclip-frontend-production
     env: docker
     dockerContext: ./frontend
     dockerfilePath: ./frontend/Dockerfile
     plan: free
     region: oregon
     numInstances: 1
-    envVarGroups:
-      - supoclip-secrets
+
     envVars:
       - key: NODE_ENV
         value: production
@@ -64,7 +62,7 @@ services:
   # Worker Service (ARQ Worker)
   # -----------------------------
   - type: worker
-    name: supoclip-worker
+    name: supoclip-worker-production
     env: docker
     dockerContext: .
     dockerfilePath: ./Dockerfile
@@ -72,8 +70,7 @@ services:
     plan: free
     region: oregon
     numInstances: 1
-    envVarGroups:
-      - supoclip-secrets
+
     envVars:
       - key: PYTHONUNBUFFERED
         value: 1
