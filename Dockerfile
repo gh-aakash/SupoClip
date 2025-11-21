@@ -1,12 +1,9 @@
 # Use Python 3.11 slim image
 FROM python:3.11-slim
 
-# --- FIXES START ---
-# Set environment variables to prevent network hangs
-# PYTHONUNBUFFERED: Ensures logs stream immediately
-# PIP_DEFAULT_TIMEOUT: Increases timeout to 100s (prevents metadata download hangs)
+# --- ENVIRONMENT FIXES ---
 ENV PYTHONUNBUFFERED=1 \
-    PIP_DEFAULT_TIMEOUT=100 \
+    PIP_DEFAULT_TIMEOUT=120 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1
 
@@ -15,6 +12,10 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     curl \
     git \
+    build-essential \
+    libssl-dev \
+    libffi-dev \
+    libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -23,17 +24,17 @@ WORKDIR /app
 # Copy requirements file from backend
 COPY backend/requirements.txt .
 
-# 1. CRITICAL FIX: Upgrade pip first
-# Old pip versions struggle with the new metadata resolution logic causing the hang
-RUN pip install --upgrade pip
+# -- IMPORTANT: Constrain importlib_metadata to avoid dependency resolution hang --
+# You do NOT need to modify your requirements file,
+# this keeps the fix inside Docker only.
+RUN pip install --upgrade pip setuptools wheel
+RUN pip install "importlib_metadata>=7.0,<8.0"
 
-# 2. CRITICAL FIX: Install with verbose output (-v)
-# This prevents the "silent hang" by keeping the output stream active
-RUN pip install -r requirements.txt -v
+# Install dependencies with verbose output
+RUN pip install -r requirements.txt --verbose --timeout 200
 
-# Force update yt-dlp to the absolute latest version
-RUN pip install --upgrade --force-reinstall yt-dlp -v
-RUN pip install --upgrade --force-reinstall "yt-dlp[default]" -v
+# Install yt-dlp exactly once (forces known working version)
+RUN pip install --upgrade --force-reinstall yt-dlp
 
 # Copy source code from backend
 COPY backend/src/ ./src/
@@ -49,5 +50,4 @@ RUN mkdir -p /app/uploads /app/clips /app/logs /tmp
 EXPOSE 8000
 
 # Start the application
-# Use PORT environment variable from Railway, default to 8000
 CMD sh -c "uvicorn src.main:app --host 0.0.0.0 --port ${PORT:-8000}"
