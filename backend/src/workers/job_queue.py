@@ -39,9 +39,11 @@ class JobQueue:
     async def enqueue(cls, task_name: str, **kwargs) -> str:
         """Enqueue a task to Redis using arq."""
         pool = await cls.get_pool()
-        job_id = await pool.enqueue_job(task_name, **kwargs)
-        logger.info(f"🚀 Enqueued task {task_name} with ID: {job_id}")
-        return job_id
+        job = await pool.enqueue_job(task_name, **kwargs)
+        if job:
+            logger.info(f"🚀 Enqueued task {task_name} with ID: {job.job_id}")
+            return str(job.job_id)
+        return ""
 
     @classmethod
     async def get_job(cls, job_id: str):
