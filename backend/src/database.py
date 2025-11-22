@@ -32,6 +32,7 @@ DATABASE_URL = DATABASE_URL.replace(
 # Handle both ?sslmode and &sslmode cases
 import re
 DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
+DATABASE_URL = re.sub(r'[?&]pgbouncer=[^&]*', '', DATABASE_URL)
 
 # CRITICAL FIX: Use direct connection (port 5432) instead of pgbouncer (port 6543)
 # This completely avoids prepared statement issues
