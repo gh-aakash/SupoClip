@@ -33,6 +33,10 @@ DATABASE_URL = DATABASE_URL.replace(
 import re
 DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
 
+# CRITICAL FIX: Use direct connection (port 5432) instead of pgbouncer (port 6543)
+# This completely avoids prepared statement issues
+DATABASE_URL = DATABASE_URL.replace(':6543/', ':5432/')
+
 logger.info(f"📌 Final DB URL for SQLAlchemy: {DATABASE_URL}")
 
 # --- CREATE ENGINE ---
@@ -43,9 +47,7 @@ engine = create_async_engine(
     max_overflow=10,
     pool_pre_ping=True,
     pool_recycle=1800,
-    connect_args={
-        "statement_cache_size": 0,  # Disable prepared statements for pgbouncer compatibility
-    }
+    # No special connect_args needed for direct connection
 )
 
 AsyncSessionLocal = async_sessionmaker(
