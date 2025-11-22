@@ -27,6 +27,11 @@ class User(Base):
     last_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     password_hash: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
+    # Default font preferences (from Prisma schema)
+    default_font_family: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, server_default=text("'TikTokSans-Regular'"))
+    default_font_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, server_default=text("'24'"))
+    default_font_color: Mapped[Optional[str]] = mapped_column(String(7), nullable=True, server_default=text("'#FFFFFF'"))
+
     # Relationships
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="user", cascade="all, delete-orphan")
 
@@ -73,13 +78,6 @@ class Source(Base):
 
     # Relationships - Source can have multiple tasks
     tasks: Mapped[List["Task"]] = relationship("Task", back_populates="source")
-
-    def decide_source_type(self, source_url: str) -> str:
-      """Decide which type of source this is."""
-      if "youtube" in source_url:
-        return "youtube"
-      else:
-        return "video_url"
 
 class GeneratedClip(Base):
     __tablename__ = "generated_clips"
