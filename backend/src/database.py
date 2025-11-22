@@ -33,6 +33,11 @@ DATABASE_URL = DATABASE_URL.replace(
 import re
 DATABASE_URL = re.sub(r'[?&]sslmode=[^&]*', '', DATABASE_URL)
 
+# Add pgbouncer flag if using Supabase pooler (port 6543)
+if ":6543/" in DATABASE_URL and "pgbouncer=true" not in DATABASE_URL:
+    separator = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{separator}pgbouncer=true"
+
 logger.info(f"📌 Final DB URL for SQLAlchemy: {DATABASE_URL}")
 
 # --- CREATE ENGINE ---
@@ -45,9 +50,6 @@ engine = create_async_engine(
     pool_recycle=1800,
     connect_args={
         "statement_cache_size": 0,  # Disable prepared statements for pgbouncer compatibility
-        "server_settings": {
-            "jit": "off"  # Disable JIT compilation for better pgbouncer compatibility
-        }
     }
 )
 
