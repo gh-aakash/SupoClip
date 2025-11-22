@@ -27,7 +27,34 @@ class YouTubeDownloader:
         """Get optimal yt-dlp options for high-quality downloads with enhanced YouTube bypass."""
         output_path = self.temp_dir / f"{video_id}.%(ext)s"
 
-        return {
+        # Handle cookies for authentication (bypass bot detection)
+        cookie_file = None
+        
+        # 1. Check environment variable (for Render)
+        import os
+        import tempfile
+        
+        env_cookies = os.getenv("YOUTUBE_COOKIES")
+        if env_cookies:
+            # Write env var content to a temp file
+            try:
+                # Create a temp file for cookies
+                fd, path = tempfile.mkstemp(suffix='.txt', text=True)
+                with os.fdopen(fd, 'w') as f:
+                    f.write(env_cookies)
+                cookie_file = path
+                logger.info("🍪 Using cookies from environment variable")
+            except Exception as e:
+                logger.error(f"❌ Failed to process cookies from env: {e}")
+        
+        # 2. Check local file (fallback/local dev)
+        if not cookie_file:
+            local_cookies = Path("cookies.txt")
+            if local_cookies.exists():
+                cookie_file = str(local_cookies)
+                logger.info("🍪 Using local cookies.txt file")
+
+        opts = {
             'outtmpl': str(output_path),
             # More permissive format selection to avoid "format not available" errors
             'format': 'bv*[height<=1080]+ba/b[height<=1080]/bv*+ba/b',
@@ -70,6 +97,11 @@ class YouTubeDownloader:
             'prefer_insecure': False,
             'age_limit': None,
         }
+
+        if cookie_file:
+            opts['cookiefile'] = cookie_file
+            
+        return opts
 
 def get_youtube_video_id(url: str) -> Optional[str]:
     """
