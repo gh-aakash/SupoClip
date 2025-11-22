@@ -24,13 +24,17 @@ class TaskRepository:
         font_color: str = "#FFFFFF"
     ) -> str:
         """Create a new task and return its ID."""
+        import uuid
+        task_id = str(uuid.uuid4())
+        
         result = await db.execute(
             text("""
-                INSERT INTO tasks (user_id, source_id, status, font_family, font_size, font_color, created_at, updated_at)
-                VALUES (:user_id, :source_id, :status, :font_family, :font_size, :font_color, NOW(), NOW())
+                INSERT INTO tasks (id, user_id, source_id, status, font_family, font_size, font_color, created_at, updated_at)
+                VALUES (:id, :user_id, :source_id, :status, :font_family, :font_size, :font_color, NOW(), NOW())
                 RETURNING id
             """),
             {
+                "id": task_id,
                 "user_id": user_id,
                 "source_id": str(source_id),  # Convert UUID to string
                 "status": status,
@@ -40,9 +44,10 @@ class TaskRepository:
             }
         )
         await db.commit()
-        task_id = result.scalar()
-        logger.info(f"Created task {task_id} for user {user_id}")
-        return task_id
+        # task_id is already known, but we can get it from result to be sure it was inserted
+        inserted_id = result.scalar()
+        logger.info(f"Created task {inserted_id} for user {user_id}")
+        return inserted_id
 
     @staticmethod
     async def get_task_by_id(db: AsyncSession, task_id: str) -> Optional[Dict[str, Any]]:
